@@ -49,6 +49,8 @@ Memory/
   - Time tracking
   - Best scores
 
+![image](https://github.com/user-attachments/assets/eeabb16c-c815-4bc9-8fb2-e8642825288f)
+
 ## 🛠️ Technologies Used
 
 - React

@@ -3,6 +3,7 @@ import Form from '/components/Form'
 import MemoryCard from '/components/MemoryCard'
 import AssistiveTechInfo from '/components/AssistiveTechInfo'
 import GameOver from '/components/GameOver'
+import GameStatus from './components/GameStatus'
 import ErrorCard from '/components/ErrorCard'
 
 export default function App() {
@@ -187,8 +188,6 @@ export default function App() {
             {!isGameOn && !isError &&
                 <Form handleSubmit={startGame} handleChange={handleFormChange} />
             }
-            {isGameOn && !areAllCardsMatched &&
-                <AssistiveTechInfo emojisData={emojisData} matchedCards={matchedCards} />}
             {areAllCardsMatched && 
                 <GameOver 
                     handleClick={resetGame} 
@@ -196,12 +195,24 @@ export default function App() {
                 />
             }
             {isGameOn &&
-                <MemoryCard
-                    handleClick={turnCard}
-                    data={emojisData}
-                    selectedCards={selectedCards}
-                    matchedCards={matchedCards}
-                />
+                <div className="game-container">
+                    <AssistiveTechInfo 
+                        emojisData={emojisData} 
+                        matchedCards={matchedCards} 
+                    />
+                    <GameStatus 
+                        emojisData={emojisData} 
+                        matchedCards={matchedCards} 
+                    />
+                    <div className="cards-wrapper">
+                        <MemoryCard
+                            handleClick={turnCard}
+                            data={emojisData}
+                            selectedCards={selectedCards}
+                            matchedCards={matchedCards}
+                        />
+                    </div>
+                </div>
             }
             {isError && <ErrorCard handleClick={resetError} />}
         </main>

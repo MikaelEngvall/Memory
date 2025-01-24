@@ -17,6 +17,11 @@ export default function App() {
     const [areAllCardsMatched, setAreAllCardsMatched] = useState(false)
     const [isError, setIsError] = useState(false)
     const [attempts, setAttempts] = useState(0)  // Add attempts state
+    const [timeElapsed, setTimeElapsed] = useState(0)
+    const [isTimerActive, setIsTimerActive] = useState(false)
+    const [bestScore, setBestScore] = useState(
+        JSON.parse(localStorage.getItem('bestScore')) || {}
+    )
 
     // Add attempt counter when two cards are selected
     useEffect(() => {
@@ -36,6 +41,20 @@ export default function App() {
             setAreAllCardsMatched(true)
         }
     }, [matchedCards])
+
+    useEffect(() => {
+        let interval
+        if (isGameOn && !areAllCardsMatched) {
+            setIsTimerActive(true)
+            interval = setInterval(() => {
+                setTimeElapsed(time => time + 1)
+            }, 1000)
+        }
+        return () => {
+            clearInterval(interval)
+            setIsTimerActive(false)
+        }
+    }, [isGameOn, areAllCardsMatched])
     
     function handleFormChange(e) {
         setFormData(prevFormData => ({...prevFormData, [e.target.name]: e.target.value}))
@@ -43,6 +62,7 @@ export default function App() {
     
     async function startGame(e) {
         e.preventDefault()
+        setTimeElapsed(0)
         
         try {
             let data;
@@ -203,7 +223,8 @@ export default function App() {
                     <GameStatus 
                         emojisData={emojisData} 
                         matchedCards={matchedCards}
-                        attempts={attempts}  // Add attempts prop
+                        attempts={attempts}
+                        timeElapsed={timeElapsed}
                     />
                     <MemoryCard
                         handleClick={turnCard}

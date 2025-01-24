@@ -1,19 +1,98 @@
-# Getting Started
-Install the dependencies and run the project
+# 🎮 Memory Game
+
+A modern memory card game built with React, featuring multiple game modes and multiplayer support.
+
+## 📁 Project Structure
+
 ```
-npm install
-npm start
+Memory/
+│
+├── components/
+│   ├── AssistiveTechInfo.jsx
+│   ├── EmojiButton.jsx
+│   ├── ErrorCard.jsx
+│   ├── Form.jsx
+│   ├── GameOver.jsx
+│   ├── GameStatus.jsx
+│   ├── MemoryCard.jsx
+│   ├── Option.jsx
+│   ├── RegularButton.jsx
+│   └── Select.jsx
+│
+├── data/
+│   └── data.js
+│
+├── App.jsx
+├── index.html
+├── index.css
+└── README.md
 ```
 
-Head over to https://vitejs.dev/ to learn more about configuring vite
-## About Scrimba
+## ✨ Features
 
-At Scrimba our goal is to create the best possible coding school at the cost of a gym membership! 💜
-If we succeed with this, it will give anyone who wants to become a software developer a realistic shot at succeeding, regardless of where they live and the size of their wallets 🎉
-The Frontend Developer Career Path aims to teach you everything you need to become a Junior Developer, or you could take a deep-dive with one of our advanced courses 🚀
+- **Multiple Game Modes**:
+  - Emoji cards
+  - Pokemon cards
+  - Dog images
+  - Rick and Morty characters
 
-- [Our courses](https://scrimba.com/allcourses)
-- [The Frontend Career Path](https://scrimba.com/learn/frontend)
-- [Become a Scrimba Pro member](https://scrimba.com/pricing)
+- **Multiplayer Support**:
+  - 1-4 players
+  - Turn-based gameplay
+  - Score tracking
 
-Happy Coding!
+- **Game Statistics**:
+  - Attempt counter
+  - Match rate
+  - Time tracking
+  - Best scores
+
+## 🛠️ Technologies Used
+
+- React
+- Vite
+- JavaScript ES6
+- CSS3
+- HTML5
+
+## 📋 Prerequisites
+
+- Node.js 14.0.0
+- npm 6.0.0
+
+## 🚀 Installation
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/memory-game.git
+   ```
+
+2. Navigate to project directory:
+   ```
+   cd memory-game
+   ```
+
+3. Install dependencies:
+   ```
+   npm install
+   ```
+
+## 🎮 Running the Game
+
+1. Start development server:
+   ```
+   npm start
+   ```
+
+2. Open browser and navigate to:
+   ```
+   http://localhost:5173
+   ```
+
+## 👨‍💻 Author
+
+Mikael Engvall
+
+## 📄 License
+
+This project is licensed under the MIT License.

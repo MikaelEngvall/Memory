@@ -7,7 +7,11 @@ import GameStatus from './components/GameStatus'
 import ErrorCard from '/components/ErrorCard'
 
 export default function App() {
-    const initialFormData = {category: "animals-and-nature", number: 10}
+    const initialFormData = {
+        category: "animals-and-nature", 
+        number: 10,
+        players: "1"  // Add players to initial form data
+    }
     
     const [formData, setFormData] = useState(initialFormData)
     const [isGameOn, setIsGameOn] = useState(false)
@@ -22,11 +26,27 @@ export default function App() {
     const [bestScore, setBestScore] = useState(
         JSON.parse(localStorage.getItem('bestScore')) || {}
     )
+    const [currentPlayer, setCurrentPlayer] = useState(0)
+    const [playerScores, setPlayerScores] = useState([])
+    const [isLoading, setIsLoading] = useState(false)
 
     // Add attempt counter when two cards are selected
     useEffect(() => {
         if (selectedCards.length === 2) {
             setAttempts(prev => prev + 1)
+            // Check for match
+            if (selectedCards[0].name === selectedCards[1].name) {
+                setPlayerScores(prev => {
+                    const newScores = [...prev]
+                    newScores[currentPlayer]++
+                    return newScores
+                })
+            } else {
+                // Switch to next player if no match
+                setCurrentPlayer(prev => 
+                    (prev + 1) % parseInt(formData.players)
+                )
+            }
         }
     }, [selectedCards])
 
@@ -39,8 +59,9 @@ export default function App() {
     useEffect(() => {
         if (emojisData.length && matchedCards.length === emojisData.length) {
             setAreAllCardsMatched(true)
+            setIsTimerActive(false)
         }
-    }, [matchedCards])
+    }, [matchedCards, emojisData])
 
     useEffect(() => {
         let interval
@@ -62,9 +83,12 @@ export default function App() {
     
     async function startGame(e) {
         e.preventDefault()
-        setTimeElapsed(0)
-        
+        setIsLoading(true)
         try {
+            setTimeElapsed(0)
+            setCurrentPlayer(0)
+            setPlayerScores(new Array(parseInt(formData.players)).fill(0))
+            
             let data;
             
             switch(formData.category) {
@@ -91,6 +115,8 @@ export default function App() {
         } catch(err) {
             console.error(err)
             setIsError(true)
+        } finally {
+            setIsLoading(false)
         }   
     }
 
@@ -196,6 +222,9 @@ export default function App() {
         setMatchedCards([])
         setAreAllCardsMatched(false)
         setAttempts(0)
+        setTimeElapsed(0)
+        setCurrentPlayer(0)
+        setPlayerScores([])
     }
     
     function resetError() {
@@ -208,13 +237,8 @@ export default function App() {
             {!isGameOn && !isError &&
                 <Form handleSubmit={startGame} handleChange={handleFormChange} />
             }
-            {areAllCardsMatched && 
-                <GameOver 
-                    handleClick={resetGame} 
-                    attempts={attempts}
-                />
-            }
-            {isGameOn &&
+            {isLoading && <p>Loading game...</p>}
+            {isGameOn && !areAllCardsMatched && !isLoading &&
                 <div className="game-container">
                     <AssistiveTechInfo 
                         emojisData={emojisData} 
@@ -225,6 +249,8 @@ export default function App() {
                         matchedCards={matchedCards}
                         attempts={attempts}
                         timeElapsed={timeElapsed}
+                        currentPlayer={currentPlayer}
+                        playerScores={playerScores || []}
                     />
                     <MemoryCard
                         handleClick={turnCard}
@@ -233,6 +259,13 @@ export default function App() {
                         matchedCards={matchedCards}
                     />
                 </div>
+            }
+            {areAllCardsMatched && 
+                <GameOver 
+                    handleClick={resetGame} 
+                    attempts={attempts}
+                    playerScores={playerScores}
+                />
             }
             {isError && <ErrorCard handleClick={resetError} />}
         </main>

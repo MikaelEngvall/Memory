@@ -50,6 +50,12 @@ const data = {
       value: "50",
     },
   ],
+  players: [
+    { name: "1 Player", value: "1" },
+    { name: "2 Players", value: "2" },
+    { name: "3 Players", value: "3" },
+    { name: "4 Players", value: "4" },
+  ],
 };
 
 export { data };

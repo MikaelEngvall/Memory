@@ -15,7 +15,15 @@ export default function App() {
     const [matchedCards, setMatchedCards] = useState([])
     const [areAllCardsMatched, setAreAllCardsMatched] = useState(false)
     const [isError, setIsError] = useState(false)
-    
+    const [attempts, setAttempts] = useState(0)  // Add attempts state
+
+    // Add attempt counter when two cards are selected
+    useEffect(() => {
+        if (selectedCards.length === 2) {
+            setAttempts(prev => prev + 1)
+        }
+    }, [selectedCards])
+
     useEffect(() => {
         if (selectedCards.length === 2 && selectedCards[0].name === selectedCards[1].name) {
             setMatchedCards(prevMatchedCards => [...prevMatchedCards, ...selectedCards])
@@ -36,22 +44,78 @@ export default function App() {
         e.preventDefault()
         
         try {
-            const response = await fetch(`https://emojihub.yurace.pro/api/all/category/${formData.category}`)
+            let data;
             
-            if (!response.ok) {
-                throw new Error("Could not fetch data from API")
+            switch(formData.category) {
+                case 'pokemon':
+                    data = await fetchPokemonData()
+                    break;
+                case 'dogs':
+                    data = await fetchDogData()
+                    break;
+                case 'rickandmorty':
+                    data = await fetchRickAndMortyData()
+                    break;
+                default:
+                    const response = await fetch(`https://emojihub.yurace.pro/api/all/category/${formData.category}`)
+                    if (!response.ok) throw new Error("Could not fetch data from API")
+                    data = await response.json()
             }
-            
-            const data = await response.json()
+
             const dataSlice = await getDataSlice(data)
-            const emojisArray = await getEmojisArray(dataSlice)
+            const cardsArray = await getEmojisArray(dataSlice)
             
-            setEmojisData(emojisArray)
+            setEmojisData(cardsArray)
             setIsGameOn(true)
         } catch(err) {
             console.error(err)
             setIsError(true)
         }   
+    }
+
+    async function fetchPokemonData() {
+        const pokemonIds = new Set()
+        while(pokemonIds.size < formData.number/2) {
+            pokemonIds.add(Math.floor(Math.random() * 898) + 1)
+        }
+        
+        const promises = [...pokemonIds].map(id => 
+            fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+                .then(res => res.json())
+        )
+        
+        const pokemonData = await Promise.all(promises)
+        return pokemonData.map(pokemon => ({
+            name: pokemon.name,
+            htmlCode: [pokemon.sprites.front_default],
+            type: 'image'
+        }))
+    }
+
+    async function fetchDogData() {
+        const response = await fetch(`https://dog.ceo/api/breeds/image/random/${formData.number/2}`)
+        const data = await response.json()
+        return data.message.map((url, index) => ({
+            name: `dog${index}`,
+            htmlCode: [url],
+            type: 'image'
+        }))
+    }
+
+    async function fetchRickAndMortyData() {
+        const maxChar = 826
+        const charIds = new Set()
+        while(charIds.size < formData.number/2) {
+            charIds.add(Math.floor(Math.random() * maxChar) + 1)
+        }
+        
+        const response = await fetch(`https://rickandmortyapi.com/api/character/${[...charIds]}`)
+        const data = await response.json()
+        return data.map(char => ({
+            name: char.name,
+            htmlCode: [char.image],
+            type: 'image'
+        }))
     }
 
     async function getDataSlice(data) {
@@ -96,16 +160,21 @@ export default function App() {
     function turnCard(name, index) {
         if (selectedCards.length < 2) {
             setSelectedCards(prevSelectedCards => [...prevSelectedCards, { name, index }])
+            if (selectedCards.length === 1) {
+                setAttempts(prev => prev + 1) // Increment on second card
+            }
         } else if (selectedCards.length === 2) {
             setSelectedCards([{ name, index }])
         }
     }
     
+    // Reset game function should clear attempts
     function resetGame() {
         setIsGameOn(false)
         setSelectedCards([])
         setMatchedCards([])
         setAreAllCardsMatched(false)
+        setAttempts(0)
     }
     
     function resetError() {
@@ -120,7 +189,12 @@ export default function App() {
             }
             {isGameOn && !areAllCardsMatched &&
                 <AssistiveTechInfo emojisData={emojisData} matchedCards={matchedCards} />}
-            {areAllCardsMatched && <GameOver handleClick={resetGame} />}
+            {areAllCardsMatched && 
+                <GameOver 
+                    handleClick={resetGame} 
+                    attempts={attempts}
+                />
+            }
             {isGameOn &&
                 <MemoryCard
                     handleClick={turnCard}

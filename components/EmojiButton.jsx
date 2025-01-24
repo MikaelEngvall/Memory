@@ -7,8 +7,11 @@ export default function EmojiButton({
     matchedCardEntry,
     index
 }) {
-    
-    const btnContent = selectedCardEntry || matchedCardEntry ? decodeEntity(emoji.htmlCode[0]) : "?"
+    const btnContent = selectedCardEntry || matchedCardEntry ? 
+        emoji.type === 'image' ? 
+            <img src={emoji.htmlCode[0]} alt={emoji.name} style={{width: '100%', height: '100%', objectFit: 'contain'}} /> :
+            decodeEntity(emoji.htmlCode[0]) 
+        : "?"
     
     const btnStyle =
         matchedCardEntry ? "btn--emoji__back--matched" :

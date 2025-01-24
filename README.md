@@ -2,6 +2,8 @@
 
 A modern memory card game built with React, featuring multiple game modes and multiplayer support.
 
+![image](https://github.com/user-attachments/assets/5f2e5170-9d74-4566-a5b1-c6bc34e2ca83)
+
 ## 📁 Project Structure
 
 ```

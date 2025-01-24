@@ -202,16 +202,15 @@ export default function App() {
                     />
                     <GameStatus 
                         emojisData={emojisData} 
-                        matchedCards={matchedCards} 
+                        matchedCards={matchedCards}
+                        attempts={attempts}  // Add attempts prop
                     />
-                    <div className="cards-wrapper">
-                        <MemoryCard
-                            handleClick={turnCard}
-                            data={emojisData}
-                            selectedCards={selectedCards}
-                            matchedCards={matchedCards}
-                        />
-                    </div>
+                    <MemoryCard
+                        handleClick={turnCard}
+                        data={emojisData}
+                        selectedCards={selectedCards}
+                        matchedCards={matchedCards}
+                    />
                 </div>
             }
             {isError && <ErrorCard handleClick={resetError} />}

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
+import { io } from 'socket.io-client'
 import Form from '/components/Form'
 import MemoryCard from '/components/MemoryCard'
 import AssistiveTechInfo from '/components/AssistiveTechInfo'
 import GameOver from '/components/GameOver'
 import GameStatus from './components/GameStatus'
 import ErrorCard from '/components/ErrorCard'
+
+const socket = io('http://localhost:3001')
 
 export default function App() {
     const initialFormData = {
@@ -29,6 +32,10 @@ export default function App() {
     const [currentPlayer, setCurrentPlayer] = useState(0)
     const [playerScores, setPlayerScores] = useState([])
     const [isLoading, setIsLoading] = useState(false)
+    const [isOnline, setIsOnline] = useState(false)
+    const [roomCode, setRoomCode] = useState('')
+    const [playerName, setPlayerName] = useState('')
+    const [connectedPlayers, setConnectedPlayers] = useState([])
 
     // Add attempt counter when two cards are selected
     useEffect(() => {
@@ -76,6 +83,27 @@ export default function App() {
             setIsTimerActive(false)
         }
     }, [isGameOn, areAllCardsMatched])
+
+    // Socket event listeners
+    useEffect(() => {
+        socket.on('roomCreated', (code) => {
+            setRoomCode(code)
+        })
+
+        socket.on('playerJoined', (players) => {
+            setConnectedPlayers(players)
+        })
+
+        socket.on('updateGameState', (gameState) => {
+            handleRemoteCardSelection(gameState)
+        })
+
+        return () => {
+            socket.off('roomCreated')
+            socket.off('playerJoined')
+            socket.off('updateGameState')
+        }
+    }, [])
     
     function handleFormChange(e) {
         setFormData(prevFormData => ({...prevFormData, [e.target.name]: e.target.value}))
@@ -205,6 +233,9 @@ export default function App() {
     }
     
     function turnCard(name, index) {
+        if (isOnline) {
+            socket.emit('cardSelected', {roomCode, cardIndex: index})
+        }
         if (selectedCards.length < 2) {
             setSelectedCards(prevSelectedCards => [...prevSelectedCards, { name, index }])
             if (selectedCards.length === 1) {
@@ -230,13 +261,63 @@ export default function App() {
     function resetError() {
         setIsError(false)
     }
+
+    // Create new online game
+    function createOnlineGame() {
+        socket.emit('createRoom', playerName)
+        setIsOnline(true)
+    }
+
+    // Join existing game
+    function joinGame(code) {
+        socket.emit('joinRoom', {roomCode: code, playerName})
+        setRoomCode(code)
+        setIsOnline(true)
+    }
+
+    // Handle remote card selection
+    function handleRemoteCardSelection(gameState) {
+        turnCard(gameState.selectedCard)
+    }
     
     return (
         <main>
             <h1>Memory</h1>
-            {!isGameOn && !isError &&
-                <Form handleSubmit={startGame} handleChange={handleFormChange} />
-            }
+            {!isGameOn && !isError && (
+                <>
+                    {!isOnline ? (
+                        <div className="online-menu">
+                            <input 
+                                type="text" 
+                                placeholder="Enter your name"
+                                onChange={(e) => setPlayerName(e.target.value)}
+                            />
+                            <button onClick={createOnlineGame}>Create Game</button>
+                            <div>
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter room code"
+                                    onChange={(e) => setRoomCode(e.target.value)}
+                                />
+                                <button onClick={() => joinGame(roomCode)}>
+                                    Join Game
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="room-info">
+                            <h2>Room Code: {roomCode}</h2>
+                            <h3>Players:</h3>
+                            {connectedPlayers.map(player => (
+                                <p key={player.id}>{player.name}</p>
+                            ))}
+                            {connectedPlayers.length > 1 && (
+                                <Form handleSubmit={startGame} handleChange={handleFormChange} />
+                            )}
+                        </div>
+                    )}
+                </>
+            )}
             {isLoading && <p>Loading game...</p>}
             {isGameOn && !areAllCardsMatched && !isLoading &&
                 <div className="game-container">

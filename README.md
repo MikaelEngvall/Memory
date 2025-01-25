@@ -2,6 +2,8 @@
 
 A modern memory card game built with React, featuring multiple game modes and multiplayer support.
 
+![image](https://github.com/user-attachments/assets/5f2e5170-9d74-4566-a5b1-c6bc34e2ca83)
+
 ## 📁 Project Structure
 
 ```
@@ -46,6 +48,8 @@ Memory/
   - Match rate
   - Time tracking
   - Best scores
+
+![image](https://github.com/user-attachments/assets/eeabb16c-c815-4bc9-8fb2-e8642825288f)
 
 ## 🛠️ Technologies Used
 

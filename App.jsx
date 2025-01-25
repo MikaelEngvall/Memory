@@ -36,6 +36,7 @@ export default function App() {
     const [roomCode, setRoomCode] = useState('')
     const [playerName, setPlayerName] = useState('')
     const [connectedPlayers, setConnectedPlayers] = useState([])
+    const [isHost, setIsHost] = useState(false)
 
     // Add attempt counter when two cards are selected
     useEffect(() => {
@@ -98,10 +99,22 @@ export default function App() {
             handleRemoteCardSelection(gameState)
         })
 
+        socket.on('roomUpdate', ({ code, players }) => {
+            setRoomCode(code)
+            setConnectedPlayers(players)
+        })
+
+        socket.on('gameStarted', (gameConfig) => {
+            setFormData(gameConfig)
+            startGame()
+        })
+
         return () => {
             socket.off('roomCreated')
             socket.off('playerJoined')
             socket.off('updateGameState')
+            socket.off('roomUpdate')
+            socket.off('gameStarted')
         }
     }, [])
     
@@ -278,6 +291,26 @@ export default function App() {
     // Handle remote card selection
     function handleRemoteCardSelection(gameState) {
         turnCard(gameState.selectedCard)
+    }
+
+    function createRoom() {
+        socket.emit('createRoom', { playerName })
+        setIsHost(true)
+    }
+
+    function joinRoom(code) {
+        socket.emit('joinRoom', { 
+            roomCode: code,
+            playerName 
+        })
+    }
+
+    function handleStartGame(e) {
+        e.preventDefault()
+        socket.emit('startGame', {
+            roomCode,
+            gameConfig: formData
+        })
     }
     
     return (

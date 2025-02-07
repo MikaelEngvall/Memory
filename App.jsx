@@ -130,7 +130,7 @@ export default function App() {
 
         socket.on("pairMatched", ({ cards, player }) => {
             setMatchedCards(prev => [...prev, ...cards.map(cardIndex => ({
-                name: atob(emojisData[cardIndex].name), // Dekoda namnet
+                name: emojisData[cardIndex].name,
                 index: cardIndex
             }))]);
             setPlayerScores(prev => {
@@ -340,9 +340,10 @@ export default function App() {
     function turnCard(name, index) {
         const now = Date.now();
         if (now - lastMoveTime < MIN_MOVE_DELAY) {
-            return; // För snabbt drag, ignorera
+            return;
         }
         lastMoveTime = now;
+        
         if (currentPlayer !== connectedPlayers.findIndex(p => p.name === playerName)) {
             return;
         }

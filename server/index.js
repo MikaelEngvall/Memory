@@ -9,7 +9,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: [
+      "https://3zt1l3c8-4000.euw.devtunnels.ms/",
+      "http://localhost:3000",
+    ],
     methods: ["GET", "POST"],
   },
 });
@@ -200,5 +203,5 @@ function isValidMove(room, cardIndex, playerId) {
 }
 
 server.listen(3001, () => {
-  // Ta bort console.log("Server running on port 3001");
+  console.log("Server körs på port 3001");
 });

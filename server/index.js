@@ -2,7 +2,6 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const CryptoJS = require("crypto-js");
 
 const app = express();
 app.use(cors());
@@ -18,38 +17,11 @@ const io = new Server(server, {
 // Game rooms storage
 const gameRooms = new Map();
 
-// Lägg till en enkel krypteringsnyckel
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "your-secret-key";
-
-function encrypt(data) {
-  // Implementera enkel kryptering
-  return CryptoJS.AES.encrypt(JSON.stringify(data), ENCRYPTION_KEY).toString();
-}
-
-function decrypt(data) {
-  // Implementera dekryptering
-  const bytes = CryptoJS.AES.decrypt(data, ENCRYPTION_KEY);
-  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-}
-
 function checkGameOver(room) {
   const totalPairs = Math.floor(room.gameCards.length / 2);
   const matchedPairsCount = Math.floor(room.matchedPairs.length / 2);
   return matchedPairsCount === totalPairs;
 }
-
-function addTimeLimit(room) {
-  room.turnTimeout = setTimeout(() => {
-    // Automatiskt byt spelare om tiden går ut
-    room.currentPlayer = (room.currentPlayer + 1) % room.players.length;
-    io.to(room.code).emit("turnTimeout", {
-      nextPlayer: room.currentPlayer,
-    });
-  }, 30000); // 30 sekunder per drag
-}
-
-// Håll reda på aktiva sessioner
-const activeSessions = new Map();
 
 io.on("connection", (socket) => {
   // Create new game room
@@ -172,10 +144,8 @@ io.on("connection", (socket) => {
         room.players.forEach((player) => (player.score = 0));
 
         io.to(roomCode).emit("gameStarted", {
-          data: encrypt({
-            gameConfig,
-            gameCards: cards,
-          }),
+          gameConfig,
+          gameCards: cards,
         });
       } catch (error) {
         socket.emit("gameError", "Kunde inte starta spelet");
@@ -215,25 +185,6 @@ io.on("connection", (socket) => {
       }
     }
   });
-
-  socket.on("connect", () => {
-    const sessionId = generateSessionId();
-    activeSessions.set(socket.id, {
-      sessionId,
-      lastActivity: Date.now(),
-    });
-  });
-
-  // Rensa inaktiva sessioner
-  setInterval(() => {
-    const now = Date.now();
-    activeSessions.forEach((session, socketId) => {
-      if (now - session.lastActivity > 30 * 60 * 1000) {
-        // 30 minuter
-        disconnectPlayer(socketId);
-      }
-    });
-  }, 60000);
 });
 
 function isValidMove(room, cardIndex, playerId) {

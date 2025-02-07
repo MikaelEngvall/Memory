@@ -4,13 +4,20 @@ export default function GameStatus({
     connectedPlayers 
 }) {
     return (
-        <div className="game-status">
-            {connectedPlayers.map((player, index) => (
-                <div key={btoa(player.id)} className="player-status">
-                    <span>{maskPlayerName(player.name)}</span>
-                    <span>Poäng: {obfuscateScore(playerScores[index])}</span>
-                </div>
-            ))}
-        </div>
+        <section className="game-status">
+            <div className="status-grid">
+                {playerScores.map((score, index) => (
+                    <div key={index} className="status-item">
+                        <h3>
+                            {connectedPlayers[index]?.name} 
+                            {currentPlayer === index ? " (Nuvarande tur)" : ""}
+                        </h3>
+                        <span className="animate-number">
+                            Matchningar: {score}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </section>
     );
 }

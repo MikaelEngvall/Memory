@@ -93,11 +93,11 @@ export default function App() {
             try {
                 const { gameConfig, gameCards } = data;
                 
-                // Obfuskera både namn och symbol
+                // Behåll bara den grundläggande obfuskeringen
                 const obfuscatedCards = gameCards.map((card, index) => ({
                     ...card,
                     name: btoa(card.name),
-                    symbol: card.symbol ? btoa(card.symbol) : null, // Koda symbolen också
+                    symbol: card.symbol ? btoa(card.symbol) : null,
                     id: index,
                     type: card.type
                 }));

@@ -13,7 +13,7 @@ export default function MemoryCard({ handleClick, data, selectedCards, matchedCa
                 >
                     <EmojiButton
                         emoji={emoji}
-                        handleClick={(name) => handleClick(atob(name), index)}
+                        handleClick={(name) => handleClick(name, index)}
                         selectedCardEntry={isSelected(index)}
                         matchedCardEntry={isMatched(index)}
                         index={index}

@@ -16,7 +16,7 @@ export default function EmojiButton({
             if (emoji.type === 'image') {
                 return <img src={emoji.image} alt="Memory card" />;
             } else {
-                const decodedSymbol = decodeEntity(atob(emoji.symbol));
+                const decodedSymbol = decodeEntity(emoji.symbol);
                 const isVisibleSymbol = decodedSymbol && decodedSymbol.trim() !== '';
                 
                 return (
@@ -24,7 +24,7 @@ export default function EmojiButton({
                         {isVisibleSymbol ? (
                             <span className="emoji-symbol">{decodedSymbol}</span>
                         ) : (
-                            <span className="emoji-name">{atob(emoji.name)}</span>
+                            <span className="emoji-name">{emoji.name}</span>
                         )}
                     </div>
                 );

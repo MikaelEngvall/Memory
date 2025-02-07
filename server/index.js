@@ -4,16 +4,22 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
+// Update Express CORS configuration
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
+
 const server = http.createServer(app);
 
+// Update Socket.IO CORS configuration
 const io = new Server(server, {
   cors: {
-    origin: [
-      "https://3zt1l3c8-4000.euw.devtunnels.ms/",
-      "http://localhost:3000",
-    ],
+    origin: "*",
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 

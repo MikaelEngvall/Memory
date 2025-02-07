@@ -1,3 +1,4 @@
+import React from 'react'
 import { useState, useEffect } from 'react'
 import { io } from 'socket.io-client'
 import Form from '/components/Form'
@@ -75,8 +76,18 @@ export default function App() {
         })
 
         socket.on('updateGameState', (gameState) => {
-            const rotatedCards = rotateCardIds(gameState.cards);
-            setEmojisData(rotatedCards);
+            const { selectedCard: index, currentPlayer: activePlayer, allSelectedCards } = gameState;
+            const card = emojisData[index];
+            
+            if (card && card.name) {
+                // Uppdatera valda kort baserat på serverns state
+                const newSelectedCards = allSelectedCards.map(cardIndex => ({
+                    name: emojisData[cardIndex].name,
+                    index: cardIndex
+                }));
+                setSelectedCards(newSelectedCards);
+                setCurrentPlayer(activePlayer);
+            }
         })
 
         socket.on('roomUpdate', ({ code, players }) => {
@@ -93,16 +104,14 @@ export default function App() {
             try {
                 const { gameConfig, gameCards } = data;
                 
-                // Behåll bara den grundläggande obfuskeringen
-                const obfuscatedCards = gameCards.map((card, index) => ({
+                // Förenkla korthanteringen
+                const processedCards = gameCards.map((card, index) => ({
                     ...card,
-                    name: btoa(card.name),
-                    symbol: card.symbol ? btoa(card.symbol) : null,
                     id: index,
                     type: card.type
                 }));
 
-                setEmojisData(obfuscatedCards);
+                setEmojisData(processedCards);
                 setFormData(gameConfig);
                 setPlayerScores(new Array(connectedPlayers.length).fill(0));
                 setCurrentPlayer(0);
@@ -426,14 +435,6 @@ export default function App() {
             roomCode,
             gameConfig: formData
         })
-    }
-    
-    // Rotera kortID:n efter varje drag för att förhindra mönsteridentifiering
-    function rotateCardIds(cards) {
-        return cards.map(card => ({
-            ...card,
-            id: btoa(Math.random().toString(36) + card.id)
-        }));
     }
     
     return (

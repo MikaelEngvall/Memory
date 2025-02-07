@@ -7,7 +7,11 @@ import GameOver from '/components/GameOver'
 import GameStatus from './components/GameStatus'
 import ErrorCard from '/components/ErrorCard'
 
-const socket = io('http://localhost:3001')
+const socket = io(
+  import.meta.env.PROD 
+    ? 'din-produktions-server-url' 
+    : 'http://localhost:3001'
+)
 
 export default function App() {
     const initialFormData = {

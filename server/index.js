@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const CryptoJS = require("crypto-js");
 
 const app = express();
 app.use(cors());
@@ -17,19 +18,51 @@ const io = new Server(server, {
 // Game rooms storage
 const gameRooms = new Map();
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+// Lägg till en enkel krypteringsnyckel
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "your-secret-key";
 
+function encrypt(data) {
+  // Implementera enkel kryptering
+  return CryptoJS.AES.encrypt(JSON.stringify(data), ENCRYPTION_KEY).toString();
+}
+
+function decrypt(data) {
+  // Implementera dekryptering
+  const bytes = CryptoJS.AES.decrypt(data, ENCRYPTION_KEY);
+  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+}
+
+function checkGameOver(room) {
+  const totalPairs = Math.floor(room.gameCards.length / 2);
+  const matchedPairsCount = Math.floor(room.matchedPairs.length / 2);
+  return matchedPairsCount === totalPairs;
+}
+
+function addTimeLimit(room) {
+  room.turnTimeout = setTimeout(() => {
+    // Automatiskt byt spelare om tiden går ut
+    room.currentPlayer = (room.currentPlayer + 1) % room.players.length;
+    io.to(room.code).emit("turnTimeout", {
+      nextPlayer: room.currentPlayer,
+    });
+  }, 30000); // 30 sekunder per drag
+}
+
+// Håll reda på aktiva sessioner
+const activeSessions = new Map();
+
+io.on("connection", (socket) => {
   // Create new game room
   socket.on("createRoom", ({ playerName }) => {
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     gameRooms.set(roomCode, {
-      players: [{ id: socket.id, name: playerName, score: 0 }],
+      players: [{ id: socket.id, name: playerName, score: 0, isHost: true }],
       currentPlayer: 0,
-      gameState: null,
-      isPlaying: false,
+      selectedCards: [],
+      matchedPairs: [],
       gameStarted: false,
     });
+
     socket.join(roomCode);
     io.to(roomCode).emit("roomUpdate", {
       code: roomCode,
@@ -41,36 +74,180 @@ io.on("connection", (socket) => {
   socket.on("joinRoom", ({ roomCode, playerName }) => {
     const room = gameRooms.get(roomCode);
     if (room && !room.gameStarted) {
-      room.players.push({ id: socket.id, name: playerName, score: 0 });
+      room.players.push({
+        id: socket.id,
+        name: playerName,
+        score: 0,
+        isHost: false,
+      });
+
       socket.join(roomCode);
       io.to(roomCode).emit("roomUpdate", {
         code: roomCode,
         players: room.players,
       });
+    } else {
+      socket.emit(
+        "roomError",
+        "Rum hittades inte eller spelet har redan startat"
+      );
     }
   });
 
   // Handle card selection
   socket.on("cardSelected", ({ roomCode, cardIndex }) => {
     const room = gameRooms.get(roomCode);
-    if (room) {
+    if (!isValidMove(room, cardIndex, socket.id)) {
+      socket.emit("invalidMove");
+      return;
+    }
+    const currentPlayer = room.players[room.currentPlayer];
+
+    if (
+      currentPlayer.id === socket.id &&
+      !room.selectedCards.includes(cardIndex)
+    ) {
+      room.selectedCards.push(cardIndex);
+
       io.to(roomCode).emit("updateGameState", {
         selectedCard: cardIndex,
         currentPlayer: room.currentPlayer,
+        playerName: currentPlayer.name,
+        allSelectedCards: room.selectedCards,
       });
+
+      if (room.selectedCards.length === 2) {
+        const [firstCard, secondCard] = room.selectedCards;
+        const cards = room.gameCards;
+
+        setTimeout(() => {
+          if (cards[firstCard].name === cards[secondCard].name) {
+            room.matchedPairs.push(firstCard, secondCard);
+            room.players[room.currentPlayer].score++;
+
+            io.to(roomCode).emit("pairMatched", {
+              cards: room.selectedCards,
+              player: {
+                id: currentPlayer.id,
+                score: currentPlayer.score,
+              },
+            });
+
+            // Kontrollera om spelet är slut
+            if (checkGameOver(room)) {
+              io.to(roomCode).emit("gameOver", {
+                players: room.players,
+                matchedPairs: room.matchedPairs,
+              });
+            }
+          } else {
+            room.currentPlayer = (room.currentPlayer + 1) % room.players.length;
+
+            io.to(roomCode).emit("pairMissed", {
+              cards: room.selectedCards,
+              nextPlayer: room.currentPlayer,
+            });
+          }
+          room.selectedCards = [];
+        }, 1000);
+      }
     }
   });
 
   // Start game
-  socket.on("startGame", ({ roomCode, gameConfig }) => {
+  socket.on("startGame", ({ roomCode, gameConfig, cards }) => {
     const room = gameRooms.get(roomCode);
-    if (room) {
-      room.gameStarted = true;
-      io.to(roomCode).emit("gameStarted", gameConfig);
+    if (room && room.players.find((p) => p.id === socket.id)?.isHost) {
+      try {
+        if (!cards || !Array.isArray(cards)) {
+          throw new Error("Ett fel uppstod");
+        }
+
+        room.gameStarted = true;
+        room.gameConfig = gameConfig;
+        room.gameCards = cards;
+        room.selectedCards = [];
+        room.matchedPairs = [];
+        room.currentPlayer = 0;
+        room.players.forEach((player) => (player.score = 0));
+
+        io.to(roomCode).emit("gameStarted", {
+          data: encrypt({
+            gameConfig,
+            gameCards: cards,
+          }),
+        });
+      } catch (error) {
+        socket.emit("gameError", "Kunde inte starta spelet");
+      }
+    } else {
+      socket.emit("gameError", "Endast värden kan starta spelet");
     }
   });
+
+  // Handle disconnection
+  socket.on("disconnect", () => {
+    for (const [roomCode, room] of gameRooms.entries()) {
+      const playerIndex = room.players.findIndex((p) => p.id === socket.id);
+      if (playerIndex !== -1) {
+        const wasHost = room.players[playerIndex].isHost;
+        room.players.splice(playerIndex, 1);
+
+        if (room.players.length === 0) {
+          gameRooms.delete(roomCode);
+        } else {
+          // Om värden lämnade, gör första kvarvarande spelare till ny värd
+          if (wasHost && room.players.length > 0) {
+            room.players[0].isHost = true;
+          }
+
+          // Uppdatera currentPlayer om nödvändigt
+          if (playerIndex <= room.currentPlayer && room.currentPlayer > 0) {
+            room.currentPlayer--;
+          }
+
+          io.to(roomCode).emit("roomUpdate", {
+            code: roomCode,
+            players: room.players,
+          });
+        }
+        break;
+      }
+    }
+  });
+
+  socket.on("connect", () => {
+    const sessionId = generateSessionId();
+    activeSessions.set(socket.id, {
+      sessionId,
+      lastActivity: Date.now(),
+    });
+  });
+
+  // Rensa inaktiva sessioner
+  setInterval(() => {
+    const now = Date.now();
+    activeSessions.forEach((session, socketId) => {
+      if (now - session.lastActivity > 30 * 60 * 1000) {
+        // 30 minuter
+        disconnectPlayer(socketId);
+      }
+    });
+  }, 60000);
 });
 
+function isValidMove(room, cardIndex, playerId) {
+  return (
+    room &&
+    room.gameStarted &&
+    room.players[room.currentPlayer].id === playerId &&
+    !room.selectedCards.includes(cardIndex) &&
+    !room.matchedPairs.includes(cardIndex) &&
+    cardIndex >= 0 &&
+    cardIndex < room.gameCards.length
+  );
+}
+
 server.listen(3001, () => {
-  console.log("Server running on port 3001");
+  // Ta bort console.log("Server running on port 3001");
 });

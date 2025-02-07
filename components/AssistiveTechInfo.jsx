@@ -1,9 +1,18 @@
 export default function AssistiveTechInfo({ emojisData, matchedCards }) {
+    if (!emojisData || !matchedCards) {
+        return null;
+    }
+
     return (
-        <section className="sr-only" aria-live="polite" aria-atomic="true">
-            <h2>Game status</h2>
-            <p>Number of matched pairs: {matchedCards.length / 2}</p>
-            <p>Number of cards left to match: {emojisData.length - matchedCards.length}</p>
-        </section>
+        <div className="sr-only">
+            {emojisData.map((emoji, index) => {
+                const isMatched = matchedCards.find(card => card.index === index);
+                return (
+                    <p key={index}>
+                        Kort {index + 1}: {isMatched ? `${atob(emoji.name)} (matchat)` : 'Dolt'}
+                    </p>
+                );
+            })}
+        </div>
     )
 }

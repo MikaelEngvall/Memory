@@ -7,31 +7,51 @@ export default function EmojiButton({
     matchedCardEntry,
     index
 }) {
-    const btnContent = selectedCardEntry || matchedCardEntry ? 
-        emoji.type === 'image' ? 
-            <img src={emoji.htmlCode[0]} alt={emoji.name} style={{width: '100%', height: '100%', objectFit: 'contain'}} /> :
-            decodeEntity(emoji.htmlCode[0]) 
-        : "?"
-    
+    if (!emoji) {
+        return null;
+    }
+
+    const getContent = () => {
+        if (selectedCardEntry || matchedCardEntry) {
+            if (emoji.type === 'image') {
+                return <img src={emoji.image} alt="Memory card" />;
+            } else {
+                const decodedSymbol = decodeEntity(atob(emoji.symbol));
+                const isVisibleSymbol = decodedSymbol && decodedSymbol.trim() !== '';
+                
+                return (
+                    <div className="emoji-content">
+                        {isVisibleSymbol ? (
+                            <span className="emoji-symbol">{decodedSymbol}</span>
+                        ) : (
+                            <span className="emoji-name">{atob(emoji.name)}</span>
+                        )}
+                    </div>
+                );
+            }
+        }
+        return "?";
+    };
+
     const btnStyle =
         matchedCardEntry ? "btn--emoji__back--matched" :
         selectedCardEntry ? "btn--emoji__back--selected" :
-        "btn--emoji__front"
+        "btn--emoji__front";
         
     const btnAria =
-        matchedCardEntry ? `${decodeEntity(emoji.name)}. Matched.` :
-        selectedCardEntry ? `${decodeEntity(emoji.name)}. Not matched yet.` :
-        "Card upside down."
+        matchedCardEntry ? `${emoji.name}. Matchad.` :
+        selectedCardEntry ? `${emoji.name}. Inte matchad än.` :
+        "Kort upp och ner.";
  
     return (
         <button
             className={`btn btn--emoji ${btnStyle}`}
-            onClick={selectedCardEntry ? null : handleClick}
+            onClick={selectedCardEntry ? null : () => handleClick(emoji.name, index)}
             disabled={matchedCardEntry}
             aria-label={`Position ${index + 1}: ${btnAria}`}
             aria-live="polite"
         >
-            {btnContent}
+            {getContent()}
         </button>
-    )
+    );
 }

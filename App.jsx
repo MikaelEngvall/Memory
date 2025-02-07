@@ -11,9 +11,9 @@ const socket = io('http://localhost:3001')
 
 export default function App() {
     const initialFormData = {
-        category: "animals-and-nature", 
+        category: "animals-and-nature",
         number: 10,
-        players: "1"  // Add players to initial form data
+        players: "2"  // Ändra default till 2 spelare
     }
     
     const [formData, setFormData] = useState(initialFormData)
@@ -24,8 +24,6 @@ export default function App() {
     const [areAllCardsMatched, setAreAllCardsMatched] = useState(false)
     const [isError, setIsError] = useState(false)
     const [attempts, setAttempts] = useState(0)  // Add attempts state
-    const [timeElapsed, setTimeElapsed] = useState(0)
-    const [isTimerActive, setIsTimerActive] = useState(false)
     const [bestScore, setBestScore] = useState(
         JSON.parse(localStorage.getItem('bestScore')) || {}
     )
@@ -37,6 +35,8 @@ export default function App() {
     const [playerName, setPlayerName] = useState('')
     const [connectedPlayers, setConnectedPlayers] = useState([])
     const [isHost, setIsHost] = useState(false)
+    const [isWaitingRoom, setIsWaitingRoom] = useState(false)
+    const [roomError, setRoomError] = useState("")
 
     // Add attempt counter when two cards are selected
     useEffect(() => {
@@ -64,27 +64,6 @@ export default function App() {
         }
     }, [selectedCards])
     
-    useEffect(() => {
-        if (emojisData.length && matchedCards.length === emojisData.length) {
-            setAreAllCardsMatched(true)
-            setIsTimerActive(false)
-        }
-    }, [matchedCards, emojisData])
-
-    useEffect(() => {
-        let interval
-        if (isGameOn && !areAllCardsMatched) {
-            setIsTimerActive(true)
-            interval = setInterval(() => {
-                setTimeElapsed(time => time + 1)
-            }, 1000)
-        }
-        return () => {
-            clearInterval(interval)
-            setIsTimerActive(false)
-        }
-    }, [isGameOn, areAllCardsMatched])
-
     // Socket event listeners
     useEffect(() => {
         socket.on('roomCreated', (code) => {
@@ -96,125 +75,224 @@ export default function App() {
         })
 
         socket.on('updateGameState', (gameState) => {
-            handleRemoteCardSelection(gameState)
+            const rotatedCards = rotateCardIds(gameState.cards);
+            setEmojisData(rotatedCards);
         })
 
         socket.on('roomUpdate', ({ code, players }) => {
             setRoomCode(code)
             setConnectedPlayers(players)
+            setIsWaitingRoom(true)
         })
 
-        socket.on('gameStarted', (gameConfig) => {
-            setFormData(gameConfig)
-            startGame()
+        socket.on('roomError', (error) => {
+            setRoomError(error)
         })
+
+        socket.on('gameStarted', (data) => {
+            try {
+                const { gameConfig, gameCards } = data;
+                
+                // Obfuskera både namn och symbol
+                const obfuscatedCards = gameCards.map((card, index) => ({
+                    ...card,
+                    name: btoa(card.name),
+                    symbol: card.symbol ? btoa(card.symbol) : null, // Koda symbolen också
+                    id: index,
+                    type: card.type
+                }));
+
+                setEmojisData(obfuscatedCards);
+                setFormData(gameConfig);
+                setPlayerScores(new Array(connectedPlayers.length).fill(0));
+                setCurrentPlayer(0);
+                setSelectedCards([]);
+                setMatchedCards([]);
+                setIsWaitingRoom(false);
+                setIsGameOn(true);
+            } catch (error) {
+                setIsError(true);
+            }
+        });
+
+        socket.on('gameError', (error) => {
+            setIsError(true);
+        });
+
+        socket.on("pairMatched", ({ cards, player }) => {
+            setMatchedCards(prev => [...prev, ...cards.map(cardIndex => ({
+                name: atob(emojisData[cardIndex].name), // Dekoda namnet
+                index: cardIndex
+            }))]);
+            setPlayerScores(prev => {
+                const newScores = [...prev];
+                const playerIndex = connectedPlayers.findIndex(p => p.id === player.id);
+                if (playerIndex !== -1) {
+                    newScores[playerIndex] = player.score;
+                }
+                return newScores;
+            });
+            setSelectedCards([]);
+        });
+
+        socket.on("pairMissed", ({ cards, nextPlayer }) => {
+            // Vänta lite innan korten vänds tillbaka
+            setTimeout(() => {
+                setSelectedCards([]);
+                setCurrentPlayer(nextPlayer);
+            }, 1000);
+        });
+
+        socket.on("gameOver", ({ players }) => {
+            // Hitta vinnaren (spelaren med högst poäng)
+            const winner = players.reduce((prev, current) => 
+                (current.score > prev.score) ? current : prev
+            );
+
+            setAreAllCardsMatched(true);
+            setPlayerScores(players.map(p => p.score));
+        });
 
         return () => {
             socket.off('roomCreated')
             socket.off('playerJoined')
             socket.off('updateGameState')
             socket.off('roomUpdate')
+            socket.off('roomError')
             socket.off('gameStarted')
+            socket.off('gameError')
+            socket.off("pairMatched");
+            socket.off("pairMissed");
+            socket.off("gameOver");
         }
-    }, [])
+    }, [connectedPlayers, emojisData])
     
     function handleFormChange(e) {
         setFormData(prevFormData => ({...prevFormData, [e.target.name]: e.target.value}))
     }
     
     async function startGame(e) {
-        e.preventDefault()
-        setIsLoading(true)
+        if (e) e.preventDefault();
+        if (!isHost) return;
+        
+        setIsLoading(true);
         try {
-            setTimeElapsed(0)
-            setCurrentPlayer(0)
-            setPlayerScores(new Array(parseInt(formData.players)).fill(0))
-            
-            let data;
+            let gameCards;
+            const numPairs = parseInt(formData.number) / 2;
             
             switch(formData.category) {
                 case 'pokemon':
-                    data = await fetchPokemonData()
+                    gameCards = await fetchPokemonData(numPairs);
                     break;
                 case 'dogs':
-                    data = await fetchDogData()
+                    gameCards = await fetchDogData(numPairs);
                     break;
                 case 'rickandmorty':
-                    data = await fetchRickAndMortyData()
+                    gameCards = await fetchRickAndMortyData(numPairs);
                     break;
                 default:
-                    const response = await fetch(`https://emojihub.yurace.pro/api/all/category/${formData.category}`)
-                    if (!response.ok) throw new Error("Could not fetch data from API")
-                    data = await response.json()
+                    gameCards = await fetchEmojiData(formData.category, numPairs);
             }
 
-            const dataSlice = await getDataSlice(data)
-            const cardsArray = await getEmojisArray(dataSlice)
-            
-            setEmojisData(cardsArray)
-            setIsGameOn(true)
+            if (!gameCards || gameCards.length !== numPairs) {
+                throw new Error(`Invalid number of cards received`);
+            }
+
+            const cardPairs = [...gameCards, ...gameCards]
+                .map((card, index) => ({
+                    ...card,
+                    cardId: `${card.id}-${index}`
+                }))
+                .sort(() => Math.random() - 0.5);
+
+            socket.emit('startGame', {
+                roomCode,
+                gameConfig: formData,
+                cards: cardPairs
+            });
         } catch(err) {
-            console.error(err)
-            setIsError(true)
+            setIsError(true);
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }   
     }
 
-    async function fetchPokemonData() {
-        const pokemonIds = new Set()
-        while(pokemonIds.size < formData.number/2) {
-            pokemonIds.add(Math.floor(Math.random() * 898) + 1)
+    async function fetchPokemonData(numPairs) {
+        const pokemonIds = new Set();
+        while(pokemonIds.size < numPairs) {
+            pokemonIds.add(Math.floor(Math.random() * 898) + 1);
         }
         
         const promises = [...pokemonIds].map(id => 
             fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
                 .then(res => res.json())
-        )
+        );
         
-        const pokemonData = await Promise.all(promises)
-        return pokemonData.map(pokemon => ({
+        const pokemonData = await Promise.all(promises);
+        return pokemonData.map((pokemon, index) => ({
+            id: index,
             name: pokemon.name,
-            htmlCode: [pokemon.sprites.front_default],
+            image: pokemon.sprites.front_default,
             type: 'image'
-        }))
+        }));
     }
 
-    async function fetchDogData() {
-        const response = await fetch(`https://dog.ceo/api/breeds/image/random/${formData.number/2}`)
-        const data = await response.json()
+    async function fetchDogData(numPairs) {
+        const response = await fetch(`https://dog.ceo/api/breeds/image/random/${numPairs}`);
+        const data = await response.json();
         return data.message.map((url, index) => ({
+            id: index,
             name: `dog${index}`,
-            htmlCode: [url],
+            image: url,
             type: 'image'
-        }))
+        }));
     }
 
-    async function fetchRickAndMortyData() {
-        const maxChar = 826
-        const charIds = new Set()
-        while(charIds.size < formData.number/2) {
-            charIds.add(Math.floor(Math.random() * maxChar) + 1)
+    async function fetchRickAndMortyData(numPairs) {
+        const maxChar = 826;
+        const charIds = new Set();
+        while(charIds.size < numPairs) {
+            charIds.add(Math.floor(Math.random() * maxChar) + 1);
         }
         
-        const response = await fetch(`https://rickandmortyapi.com/api/character/${[...charIds]}`)
-        const data = await response.json()
-        return data.map(char => ({
+        const response = await fetch(`https://rickandmortyapi.com/api/character/${[...charIds]}`);
+        const data = await response.json();
+        return data.map((char, index) => ({
+            id: index,
             name: char.name,
-            htmlCode: [char.image],
+            image: char.image,
             type: 'image'
-        }))
+        }));
     }
 
-    async function getDataSlice(data) {
-        const randomIndices = getRandomIndices(data)
+    async function fetchEmojiData(category, numPairs) {
+        const response = await fetch(`https://emojihub.yurace.pro/api/all/category/${category}`);
+        if (!response.ok) {
+            throw new Error("Ett fel uppstod");
+        }
+        const data = await response.json();
         
-        const dataSlice = randomIndices.reduce((array, index) => {
-            array.push(data[index])
-            return array
-        }, [])
+        const validEmojis = data.filter(emoji => 
+            emoji && 
+            emoji.htmlCode && 
+            emoji.htmlCode[0] && 
+            emoji.name &&
+            emoji.htmlCode[0].trim() !== ''
+        );
 
-        return dataSlice
+        if (validEmojis.length < numPairs) {
+            throw new Error("Ett fel uppstod");
+        }
+
+        const shuffled = [...validEmojis].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, numPairs);
+        
+        return selected.map((emoji, index) => ({
+            id: index,
+            name: emoji.name,
+            symbol: emoji.htmlCode[0], // Detta kommer att kodas senare
+            type: 'emoji'
+        }));
     }
 
     function getRandomIndices(data) {        
@@ -233,30 +311,47 @@ export default function App() {
     }
 
     async function getEmojisArray(data) {
+        if (!data || !Array.isArray(data)) {
+            throw new Error("Ett fel uppstod");
+        }
+
         const pairedEmojisArray = [...data, ...data]
         
         for (let i = pairedEmojisArray.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1))
-            const temp = pairedEmojisArray[i]
-            pairedEmojisArray[i] = pairedEmojisArray[j]
-            pairedEmojisArray[j] = temp
+            [pairedEmojisArray[i], pairedEmojisArray[j]] = [pairedEmojisArray[j], pairedEmojisArray[i]]
         }
         
         return pairedEmojisArray
     }
     
+    let lastMoveTime = 0;
+    const MIN_MOVE_DELAY = 500; // millisekunder
+
     function turnCard(name, index) {
-        if (isOnline) {
-            socket.emit('cardSelected', {roomCode, cardIndex: index})
+        const now = Date.now();
+        if (now - lastMoveTime < MIN_MOVE_DELAY) {
+            return; // För snabbt drag, ignorera
         }
-        if (selectedCards.length < 2) {
-            setSelectedCards(prevSelectedCards => [...prevSelectedCards, { name, index }])
-            if (selectedCards.length === 1) {
-                setAttempts(prev => prev + 1) // Increment on second card
-            }
-        } else if (selectedCards.length === 2) {
-            setSelectedCards([{ name, index }])
+        lastMoveTime = now;
+        if (currentPlayer !== connectedPlayers.findIndex(p => p.name === playerName)) {
+            return;
         }
+
+        if (selectedCards.find(card => card.index === index) || 
+            matchedCards.find(card => card.index === index)) {
+            return;
+        }
+
+        if (selectedCards.length >= 2) {
+            return;
+        }
+
+        socket.emit('cardSelected', {
+            roomCode,
+            cardIndex: index,
+            playerName: playerName
+        });
     }
     
     // Reset game function should clear attempts
@@ -266,9 +361,9 @@ export default function App() {
         setMatchedCards([])
         setAreAllCardsMatched(false)
         setAttempts(0)
-        setTimeElapsed(0)
         setCurrentPlayer(0)
         setPlayerScores([])
+        setIsWaitingRoom(true)
     }
     
     function resetError() {
@@ -290,19 +385,39 @@ export default function App() {
 
     // Handle remote card selection
     function handleRemoteCardSelection(gameState) {
-        turnCard(gameState.selectedCard)
+        const { selectedCard: index, currentPlayer: activePlayer, allSelectedCards } = gameState;
+        const card = emojisData[index];
+        
+        if (card && card.name) {
+            // Uppdatera valda kort baserat på serverns state
+            const newSelectedCards = allSelectedCards.map(cardIndex => ({
+                name: emojisData[cardIndex].name,
+                index: cardIndex
+            }));
+            setSelectedCards(newSelectedCards);
+            setCurrentPlayer(activePlayer);
+        }
     }
 
     function createRoom() {
+        if (!playerName.trim()) {
+            setRoomError("Please enter your name")
+            return
+        }
         socket.emit('createRoom', { playerName })
         setIsHost(true)
     }
 
-    function joinRoom(code) {
-        socket.emit('joinRoom', { 
-            roomCode: code,
-            playerName 
-        })
+    function joinRoom() {
+        if (!playerName.trim()) {
+            setRoomError("Please enter your name")
+            return
+        }
+        if (!roomCode.trim()) {
+            setRoomError("Please enter a room code")
+            return
+        }
+        socket.emit('joinRoom', { roomCode, playerName })
     }
 
     function handleStartGame(e) {
@@ -313,39 +428,61 @@ export default function App() {
         })
     }
     
+    // Rotera kortID:n efter varje drag för att förhindra mönsteridentifiering
+    function rotateCardIds(cards) {
+        return cards.map(card => ({
+            ...card,
+            id: btoa(Math.random().toString(36) + card.id)
+        }));
+    }
+    
     return (
         <main>
             <h1>Memory</h1>
             {!isGameOn && !isError && (
                 <>
-                    {!isOnline ? (
-                        <div className="online-menu">
+                    {!isWaitingRoom ? (
+                        <div className="menu">
+                            {roomError && <p className="error">{roomError}</p>}
                             <input 
                                 type="text" 
-                                placeholder="Enter your name"
+                                placeholder="Ange ditt namn"
+                                value={playerName}
                                 onChange={(e) => setPlayerName(e.target.value)}
                             />
-                            <button onClick={createOnlineGame}>Create Game</button>
+                            <button onClick={createRoom}>Skapa spel</button>
                             <div>
                                 <input 
                                     type="text" 
-                                    placeholder="Enter room code"
-                                    onChange={(e) => setRoomCode(e.target.value)}
+                                    placeholder="Ange rumskod"
+                                    value={roomCode}
+                                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                                 />
-                                <button onClick={() => joinGame(roomCode)}>
-                                    Join Game
-                                </button>
+                                <button onClick={joinRoom}>Gå med i spel</button>
                             </div>
                         </div>
                     ) : (
-                        <div className="room-info">
-                            <h2>Room Code: {roomCode}</h2>
-                            <h3>Players:</h3>
-                            {connectedPlayers.map(player => (
-                                <p key={player.id}>{player.name}</p>
-                            ))}
-                            {connectedPlayers.length > 1 && (
-                                <Form handleSubmit={startGame} handleChange={handleFormChange} />
+                        <div className="room">
+                            <h2>Rumskod: {roomCode}</h2>
+                            <div className="players">
+                                <h3>Spelare:</h3>
+                                {connectedPlayers.map(player => (
+                                    <p key={player.id}>
+                                        {player.name} {player.isHost ? "(Värd)" : ""}
+                                        {currentPlayer === connectedPlayers.indexOf(player) && " (Nuvarande tur)"}
+                                    </p>
+                                ))}
+                            </div>
+                            {isHost && (
+                                <div>
+                                    <Form 
+                                        handleSubmit={startGame} 
+                                        handleChange={handleFormChange} 
+                                    />
+                                </div>
+                            )}
+                            {!isHost && (
+                                <p>Väntar på att värden ska starta spelet...</p>
                             )}
                         </div>
                     )}
@@ -359,12 +496,9 @@ export default function App() {
                         matchedCards={matchedCards} 
                     />
                     <GameStatus 
-                        emojisData={emojisData} 
-                        matchedCards={matchedCards}
-                        attempts={attempts}
-                        timeElapsed={timeElapsed}
                         currentPlayer={currentPlayer}
-                        playerScores={playerScores || []}
+                        playerScores={playerScores}
+                        connectedPlayers={connectedPlayers}
                     />
                     <MemoryCard
                         handleClick={turnCard}

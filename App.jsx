@@ -108,7 +108,8 @@ export default function App() {
                 const processedCards = gameCards.map((card, index) => ({
                     ...card,
                     id: index,
-                    type: card.type
+                    type: card.type,
+                    image: card.image
                 }));
 
                 setEmojisData(processedCards);
@@ -430,14 +431,6 @@ export default function App() {
         socket.emit('joinRoom', { roomCode, playerName })
     }
 
-    function handleStartGame(e) {
-        e.preventDefault()
-        socket.emit('startGame', {
-            roomCode,
-            gameConfig: formData
-        })
-    }
-    
     return (
         <main>
             <h1>Memory</h1>

@@ -599,6 +599,23 @@ Misc
 }
 
 /*===========================
+Pexels attribution
+============================*/
+.pexels-attribution {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    transition: color 0.2s;
+}
+
+.pexels-attribution:hover {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px var(--neon-cyan);
+}
+
+/*===========================
 Screen reader only
 ============================*/
 .sr-only {

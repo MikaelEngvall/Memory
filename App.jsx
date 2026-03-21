@@ -22,6 +22,7 @@ export default function App() {
     const [emojisData, setEmojisData] = useState([])
     const emojisDataRef = React.useRef([])
     const myPlayerIndexRef = React.useRef(-1)
+    const connectedPlayersRef = React.useRef([])
     const [selectedCards, setSelectedCards] = useState([])
     const [matchedCards, setMatchedCards] = useState([])
     const [areAllCardsMatched, setAreAllCardsMatched] = useState(false)
@@ -72,6 +73,7 @@ export default function App() {
         socket.on('roomUpdate', ({ code, players }) => {
             setRoomCode(code)
             setConnectedPlayers(players)
+            connectedPlayersRef.current = players
             setIsWaitingRoom(true)
         })
 
@@ -179,7 +181,11 @@ export default function App() {
                     gameCards = await fetchRickAndMortyData(numPairs);
                     break;
                 default:
-                    gameCards = await fetchEmojiData(formData.category, numPairs);
+                    if (formData.category.startsWith('pexels-')) {
+                        gameCards = await fetchPexelsData(formData.category, numPairs);
+                    } else {
+                        gameCards = await fetchEmojiData(formData.category, numPairs);
+                    }
             }
 
             if (!gameCards || gameCards.length !== numPairs) {
@@ -250,6 +256,32 @@ export default function App() {
             name: char.name,
             image: char.image,
             type: 'image'
+        }));
+    }
+
+    async function fetchPexelsData(category, numPairs) {
+        const PEXELS_QUERIES = {
+            'pexels-nature':       'nature landscape',
+            'pexels-cities':       'city skyline',
+            'pexels-animals':      'wild animals',
+            'pexels-food':         'food photography',
+            'pexels-space':        'space galaxy stars',
+            'pexels-architecture': 'architecture building',
+        };
+        const query = PEXELS_QUERIES[category] || 'nature';
+        const perPage = Math.min(numPairs, 80);
+        const response = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=square`,
+            { headers: { Authorization: import.meta.env.VITE_PEXELS_API_KEY } }
+        );
+        if (!response.ok) throw new Error('Pexels API-fel');
+        const data = await response.json();
+        if (!data.photos || data.photos.length < numPairs) throw new Error('För få bilder från Pexels');
+        return data.photos.slice(0, numPairs).map((photo, index) => ({
+            id: index,
+            name: `pexels-${photo.id}`,
+            image: photo.src.medium,
+            type: 'image',
         }));
     }
 
@@ -482,6 +514,16 @@ export default function App() {
                         playerScores={playerScores}
                         connectedPlayers={connectedPlayers}
                     />
+                    {formData.category?.startsWith('pexels-') && (
+                        <a
+                            href="https://www.pexels.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="pexels-attribution"
+                        >
+                            Photos provided by Pexels
+                        </a>
+                    )}
                     <MemoryCard
                         handleClick={turnCard}
                         data={emojisData}

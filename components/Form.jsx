@@ -23,6 +23,12 @@ export default function Form({ handleSubmit, handleChange }) {
                         <option value="pokemon">Pokemon</option>
                         <option value="dogs">Hundar</option>
                         <option value="rickandmorty">Rick & Morty</option>
+                        <option value="pexels-nature">Pexels: Natur</option>
+                        <option value="pexels-cities">Pexels: Städer</option>
+                        <option value="pexels-animals">Pexels: Djur</option>
+                        <option value="pexels-food">Pexels: Mat</option>
+                        <option value="pexels-space">Pexels: Rymden</option>
+                        <option value="pexels-architecture">Pexels: Arkitektur</option>
                     </select>
                 </div>
                 <div className="form__inner-wrapper">

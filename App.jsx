@@ -8,7 +8,7 @@ import GameOver from '/components/GameOver'
 import GameStatus from './components/GameStatus'
 import ErrorCard from '/components/ErrorCard'
 
-const socket = io('http://localhost:3001')
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001')
 
 export default function App() {
     const initialFormData = {
@@ -20,6 +20,8 @@ export default function App() {
     const [formData, setFormData] = useState(initialFormData)
     const [isGameOn, setIsGameOn] = useState(false)
     const [emojisData, setEmojisData] = useState([])
+    const emojisDataRef = React.useRef([])
+    const myPlayerIndexRef = React.useRef(-1)
     const [selectedCards, setSelectedCards] = useState([])
     const [matchedCards, setMatchedCards] = useState([])
     const [areAllCardsMatched, setAreAllCardsMatched] = useState(false)
@@ -39,31 +41,13 @@ export default function App() {
     const [isWaitingRoom, setIsWaitingRoom] = useState(false)
     const [roomError, setRoomError] = useState("")
 
-    // Add attempt counter when two cards are selected
     useEffect(() => {
         if (selectedCards.length === 2) {
             setAttempts(prev => prev + 1)
-            // Check for match
-            if (selectedCards[0].name === selectedCards[1].name) {
-                setPlayerScores(prev => {
-                    const newScores = [...prev]
-                    newScores[currentPlayer]++
-                    return newScores
-                })
-            } else {
-                // Switch to next player if no match
-                setCurrentPlayer(prev => 
-                    (prev + 1) % parseInt(formData.players)
-                )
-            }
         }
     }, [selectedCards])
 
-    useEffect(() => {
-        if (selectedCards.length === 2 && selectedCards[0].name === selectedCards[1].name) {
-            setMatchedCards(prevMatchedCards => [...prevMatchedCards, ...selectedCards])
-        }
-    }, [selectedCards])
+    // matchedCards hanteras enbart via pairMatched socket-event
     
     // Socket event listeners
     useEffect(() => {
@@ -76,18 +60,13 @@ export default function App() {
         })
 
         socket.on('updateGameState', (gameState) => {
-            const { selectedCard: index, currentPlayer: activePlayer, allSelectedCards } = gameState;
-            const card = emojisData[index];
-            
-            if (card && card.name) {
-                // Uppdatera valda kort baserat på serverns state
-                const newSelectedCards = allSelectedCards.map(cardIndex => ({
-                    name: emojisData[cardIndex].name,
-                    index: cardIndex
-                }));
-                setSelectedCards(newSelectedCards);
-                setCurrentPlayer(activePlayer);
-            }
+            const { currentPlayer: activePlayer, allSelectedCards } = gameState;
+            const newSelectedCards = allSelectedCards.map(cardIndex => ({
+                name: emojisDataRef.current[cardIndex]?.name,
+                index: cardIndex
+            }));
+            setSelectedCards(newSelectedCards);
+            setCurrentPlayer(activePlayer);
         })
 
         socket.on('roomUpdate', ({ code, players }) => {
@@ -113,7 +92,10 @@ export default function App() {
                 }));
 
                 setEmojisData(processedCards);
+                emojisDataRef.current = processedCards;
                 setFormData(gameConfig);
+                const myIndex = connectedPlayers.findIndex(p => p.name === playerName);
+                myPlayerIndexRef.current = myIndex;
                 setPlayerScores(new Array(connectedPlayers.length).fill(0));
                 setCurrentPlayer(0);
                 setSelectedCards([]);
@@ -131,7 +113,7 @@ export default function App() {
 
         socket.on("pairMatched", ({ cards, player }) => {
             setMatchedCards(prev => [...prev, ...cards.map(cardIndex => ({
-                name: emojisData[cardIndex].name,
+                name: emojisDataRef.current[cardIndex]?.name,
                 index: cardIndex
             }))]);
             setPlayerScores(prev => {
@@ -154,13 +136,9 @@ export default function App() {
         });
 
         socket.on("gameOver", ({ players }) => {
-            // Hitta vinnaren (spelaren med högst poäng)
-            const winner = players.reduce((prev, current) => 
-                (current.score > prev.score) ? current : prev
-            );
-
             setAreAllCardsMatched(true);
             setPlayerScores(players.map(p => p.score));
+            setConnectedPlayers(players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
         });
 
         return () => {
@@ -175,7 +153,7 @@ export default function App() {
             socket.off("pairMissed");
             socket.off("gameOver");
         }
-    }, [connectedPlayers, emojisData])
+    }, [connectedPlayers])
     
     function handleFormChange(e) {
         setFormData(prevFormData => ({...prevFormData, [e.target.name]: e.target.value}))
@@ -345,7 +323,7 @@ export default function App() {
         }
         lastMoveTime = now;
         
-        if (currentPlayer !== connectedPlayers.findIndex(p => p.name === playerName)) {
+        if (currentPlayer !== myPlayerIndexRef.current) {
             return;
         }
 
@@ -375,6 +353,8 @@ export default function App() {
         setCurrentPlayer(0)
         setPlayerScores([])
         setIsWaitingRoom(true)
+        // Meddela servern att rummet ska återställas
+        socket.emit('resetRoom', { roomCode })
     }
     
     function resetError() {
@@ -439,21 +419,28 @@ export default function App() {
                     {!isWaitingRoom ? (
                         <div className="menu">
                             {roomError && <p className="error">{roomError}</p>}
-                            <input 
-                                type="text" 
-                                placeholder="Ange ditt namn"
-                                value={playerName}
-                                onChange={(e) => setPlayerName(e.target.value)}
-                            />
-                            <button onClick={createRoom}>Skapa spel</button>
-                            <div>
+                            <div className="menu__section">
+                                <label className="menu__label">Ditt namn</label>
                                 <input 
                                     type="text" 
+                                    className="menu__input"
+                                    placeholder="Ange ditt namn"
+                                    value={playerName}
+                                    onChange={(e) => setPlayerName(e.target.value)}
+                                />
+                                <button className="menu__btn menu__btn--primary" onClick={createRoom}>Skapa spel</button>
+                            </div>
+                            <div className="menu__divider"><span>eller</span></div>
+                            <div className="menu__section">
+                                <label className="menu__label">Rumskod</label>
+                                <input 
+                                    type="text" 
+                                    className="menu__input"
                                     placeholder="Ange rumskod"
                                     value={roomCode}
                                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                                 />
-                                <button onClick={joinRoom}>Gå med i spel</button>
+                                <button className="menu__btn menu__btn--secondary" onClick={joinRoom}>Gå med i spel</button>
                             </div>
                         </div>
                     ) : (
@@ -508,6 +495,7 @@ export default function App() {
                     handleClick={resetGame} 
                     attempts={attempts}
                     playerScores={playerScores}
+                    connectedPlayers={connectedPlayers}
                 />
             }
             {isError && <ErrorCard handleClick={resetError} />}

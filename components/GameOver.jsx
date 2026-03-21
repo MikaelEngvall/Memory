@@ -1,14 +1,14 @@
 import { useRef, useEffect } from 'react'
 import RegularButton from './RegularButton'
 
-export default function GameOver({ handleClick, attempts, playerScores }) {
+export default function GameOver({ handleClick, attempts, playerScores, connectedPlayers }) {
     const divRef = useRef(null)
     
     useEffect(() => {
-        divRef.current.focus()
+        if (divRef.current) divRef.current.focus()
     }, [])
     
-    const winner = playerScores.indexOf(Math.max(...playerScores))
+    const winner = playerScores.length > 0 ? playerScores.indexOf(Math.max(...playerScores)) : 0
     
     return (
         <div
@@ -21,12 +21,12 @@ export default function GameOver({ handleClick, attempts, playerScores }) {
             {playerScores.length > 1 ? (
                 <>
                     <p className="p--regular">
-                        Winner: Player {winner + 1} with {playerScores[winner]} pairs!
+                        Winner: {connectedPlayers[winner]?.name ?? `Player ${winner + 1}`} with {playerScores[winner]} pairs!
                     </p>
                     <div className="scores-container">
                         {playerScores.map((score, index) => (
                             <p key={index} className="p--regular">
-                                Player {index + 1}: {score} pairs
+                                {connectedPlayers[index]?.name ?? `Player ${index + 1}`}: {score} pairs
                             </p>
                         ))}
                     </div>

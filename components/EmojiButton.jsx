@@ -13,8 +13,10 @@ export default function EmojiButton({
 
     const getContent = () => {
         if (selectedCardEntry || matchedCardEntry) {
-            if (emoji.type === 'image') {
-                return <img src={emoji.image} alt="Memory card" />;
+            if (emoji.type === 'image' && emoji.image) {
+                return <img src={emoji.image} alt={emoji.name} />;
+            } else if (emoji.type === 'image') {
+                return <span className="emoji-name">{emoji.name}</span>;
             } else {
                 const decodedSymbol = decodeEntity(emoji.symbol);
                 const isVisibleSymbol = decodedSymbol && decodedSymbol.trim() !== '';
@@ -30,7 +32,7 @@ export default function EmojiButton({
                 );
             }
         }
-        return "?";
+        return null;
     };
 
     const btnStyle =

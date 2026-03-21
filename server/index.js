@@ -2,15 +2,21 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
-// Update Express CORS configuration
 app.use(
   cors({
     origin: "*",
     credentials: true,
   })
 );
+
+// Serve built frontend
+app.use(express.static(path.join(__dirname, "../dist")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../dist/index.html"));
+});
 
 const server = http.createServer(app);
 
@@ -149,7 +155,7 @@ io.on("connection", (socket) => {
         room.gameCards = cards;
         room.selectedCards = [];
         room.matchedPairs = [];
-        room.currentPlayer = 0;
+        room.currentPlayer = Math.floor(Math.random() * room.players.length);
         room.players.forEach((player) => (player.score = 0));
 
         io.to(roomCode).emit("gameStarted", {
@@ -161,6 +167,24 @@ io.on("connection", (socket) => {
       }
     } else {
       socket.emit("gameError", "Endast värden kan starta spelet");
+    }
+  });
+
+  // Reset room for new game
+  socket.on("resetRoom", ({ roomCode }) => {
+    const room = gameRooms.get(roomCode);
+    if (room) {
+      room.gameStarted = false;
+      room.selectedCards = [];
+      room.matchedPairs = [];
+      room.currentPlayer = 0;
+      room.gameCards = [];
+      room.players.forEach((player) => (player.score = 0));
+
+      io.to(roomCode).emit("roomUpdate", {
+        code: roomCode,
+        players: room.players,
+      });
     }
   });
 

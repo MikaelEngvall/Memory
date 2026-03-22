@@ -95,9 +95,11 @@ export default function App() {
                 setEmojisData(processedCards);
                 emojisDataRef.current = processedCards;
                 setFormData(gameConfig);
-                const myIndex = connectedPlayers.findIndex(p => p.name === playerName);
+                const players = connectedPlayersRef.current;
+                const myIndex = players.findIndex(p => p.name === playerName);
                 myPlayerIndexRef.current = myIndex;
-                setPlayerScores(new Array(connectedPlayers.length).fill(0));
+                console.log(`[gameStarted] startingPlayer=${startingPlayer} myIndex=${myIndex} playerName=${playerName} players=`, players);
+                setPlayerScores(new Array(players.length).fill(0));
                 setCurrentPlayer(startingPlayer ?? 0);
                 setSelectedCards([]);
                 setMatchedCards([]);
@@ -154,7 +156,7 @@ export default function App() {
             socket.off("pairMissed");
             socket.off("gameOver");
         }
-    }, [connectedPlayers])
+    }, [connectedPlayers, playerName])
     
     function handleFormChange(e) {
         setFormData(prevFormData => ({...prevFormData, [e.target.name]: e.target.value}))
@@ -354,7 +356,10 @@ export default function App() {
         }
         lastMoveTime = now;
         
+        console.log(`[turnCard] currentPlayer=${currentPlayer} myPlayerIndexRef=${myPlayerIndexRef.current} playerName=${playerName}`);
+        
         if (currentPlayer !== myPlayerIndexRef.current) {
+            console.log(`[turnCard] BLOCKED: not my turn`);
             return;
         }
 

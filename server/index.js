@@ -161,6 +161,7 @@ io.on("connection", (socket) => {
         io.to(roomCode).emit("gameStarted", {
           gameConfig,
           gameCards: cards,
+          currentPlayer: room.currentPlayer,
         });
       } catch (error) {
         socket.emit("gameError", "Kunde inte starta spelet");

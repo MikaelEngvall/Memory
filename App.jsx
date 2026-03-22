@@ -83,9 +83,8 @@ export default function App() {
 
         socket.on('gameStarted', (data) => {
             try {
-                const { gameConfig, gameCards } = data;
+                const { gameConfig, gameCards, currentPlayer: startingPlayer } = data;
                 
-                // Förenkla korthanteringen
                 const processedCards = gameCards.map((card, index) => ({
                     ...card,
                     id: index,
@@ -99,7 +98,7 @@ export default function App() {
                 const myIndex = connectedPlayers.findIndex(p => p.name === playerName);
                 myPlayerIndexRef.current = myIndex;
                 setPlayerScores(new Array(connectedPlayers.length).fill(0));
-                setCurrentPlayer(0);
+                setCurrentPlayer(startingPlayer ?? 0);
                 setSelectedCards([]);
                 setMatchedCards([]);
                 setIsWaitingRoom(false);

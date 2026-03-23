@@ -1,7 +1,7 @@
 import RegularButton from './RegularButton'
 import Select from './Select'
 
-export default function Form({ handleSubmit, handleChange }) {
+export default function Form({ handleSubmit, handleChange, canStart = true }) {
     return (
         <div className="form-container">
             <p className="p--regular">
@@ -45,8 +45,8 @@ export default function Form({ handleSubmit, handleChange }) {
                         <option value="50">50</option>
                     </select>
                 </div>
-                <RegularButton handleClick={handleSubmit}>
-                    Starta spel
+                <RegularButton handleClick={handleSubmit} disabled={!canStart}>
+                    {canStart ? 'Starta spel' : 'Väntar på spelare...'}
                 </RegularButton>
             </form>
         </div>

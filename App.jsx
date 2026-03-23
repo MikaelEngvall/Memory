@@ -517,7 +517,8 @@ export default function App() {
                                 <div>
                                     <Form 
                                         handleSubmit={startGame} 
-                                        handleChange={handleFormChange} 
+                                        handleChange={handleFormChange}
+                                        canStart={connectedPlayers.length >= 2}
                                     />
                                 </div>
                             )}

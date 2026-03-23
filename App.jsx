@@ -35,7 +35,11 @@ export default function App() {
     const [playerScores, setPlayerScores] = useState([])
     const [isLoading, setIsLoading] = useState(false)
     const [isOnline, setIsOnline] = useState(false)
-    const [roomCode, setRoomCode] = useState('')
+    const [roomCode, setRoomCode] = useState(() => {
+        const params = new URLSearchParams(window.location.search)
+        return params.get('room') || ''
+    })
+    const hasRoomInUrl = new URLSearchParams(window.location.search).has('room')
     const [playerName, setPlayerName] = useState('')
     const [connectedPlayers, setConnectedPlayers] = useState([])
     const [isHost, setIsHost] = useState(false)
@@ -455,6 +459,22 @@ export default function App() {
                     {!isWaitingRoom ? (
                         <div className="menu">
                             {roomError && <p className="error">{roomError}</p>}
+                            {!hasRoomInUrl && (
+                                <>
+                                    <div className="menu__section">
+                                        <label className="menu__label">Ditt namn</label>
+                                        <input 
+                                            type="text" 
+                                            className="menu__input"
+                                            placeholder="Ange ditt namn"
+                                            value={playerName}
+                                            onChange={(e) => setPlayerName(e.target.value)}
+                                        />
+                                        <button className="menu__btn menu__btn--primary" onClick={createRoom}>Skapa spel</button>
+                                    </div>
+                                    <div className="menu__divider"><span>eller</span></div>
+                                </>
+                            )}
                             <div className="menu__section">
                                 <label className="menu__label">Ditt namn</label>
                                 <input 
@@ -464,10 +484,6 @@ export default function App() {
                                     value={playerName}
                                     onChange={(e) => setPlayerName(e.target.value)}
                                 />
-                                <button className="menu__btn menu__btn--primary" onClick={createRoom}>Skapa spel</button>
-                            </div>
-                            <div className="menu__divider"><span>eller</span></div>
-                            <div className="menu__section">
                                 <label className="menu__label">Rumskod</label>
                                 <input 
                                     type="text" 
@@ -482,6 +498,22 @@ export default function App() {
                     ) : (
                         <div className="room">
                             <h2>Rumskod: {roomCode}</h2>
+                            {isHost && (
+                                <div className="invite-link">
+                                    <label className="menu__label">Bjud in länk</label>
+                                    <div className="invite-link__row">
+                                        <input
+                                            readOnly
+                                            className="menu__input"
+                                            value={`${window.location.origin}${window.location.pathname}?room=${roomCode}`}
+                                        />
+                                        <button
+                                            className="menu__btn menu__btn--primary"
+                                            onClick={() => navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?room=${roomCode}`)}
+                                        >Kopiera</button>
+                                    </div>
+                                </div>
+                            )}
                             <div className="players">
                                 <h3>Spelare:</h3>
                                 {connectedPlayers.map(player => (

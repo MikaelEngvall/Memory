@@ -248,7 +248,31 @@ Waiting room
     background: linear-gradient(90deg, transparent, var(--neon-purple), var(--neon-pink), transparent);
 }
 
-.players p {
+.invite-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.invite-link__row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.invite-link__row .menu__input {
+    flex: 1;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.invite-link__row .menu__btn {
+    flex-shrink: 0;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.75rem;
+}
+
+
     color: var(--text);
     padding: 0.4rem 0;
     border-bottom: 1px solid rgba(255,255,255,0.05);

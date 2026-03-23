@@ -1,6 +1,6 @@
 # 🧠 Memory Game
 
-A real-time multiplayer memory card game built with React and Socket.IO. Players take turns flipping cards to find matching pairs — supports emojis, Pokémon, dogs, and Rick & Morty characters.
+A real-time multiplayer memory card game built with React and Socket.IO. Players take turns flipping cards to find matching pairs — supports emojis, Pokémon, dogs, Rick & Morty characters, and Pexels photo categories.
 
 ![Neon gaming UI with dark background and cyan/purple glow effects]
 
@@ -9,11 +9,16 @@ A real-time multiplayer memory card game built with React and Socket.IO. Players
 ## Features
 
 - Real-time multiplayer via WebSockets (2+ players)
-- Room-based matchmaking with shareable room codes
-- Multiple card categories: emojis, Pokémon, dogs, Rick & Morty
+- Room-based matchmaking with shareable invite links
+- Joining via invite link pre-fills the room code automatically
+- Players joining via link can only join — not create a new room
+- Multiple card categories: emojis, Pokémon, dogs, Rick & Morty, Pexels photos (nature, cities, animals, food, space, architecture)
 - Configurable number of cards (host chooses before game starts)
 - Random first-player selection on game start
+- Active player panel glows to indicate whose turn it is
 - Sparkle animation on matched pairs
+- Card flip zoom animation
+- All cards fit on screen without scrolling (responsive layout)
 - Neon/gaming UI theme
 - Play Again without re-entering room codes
 - Remote play via ngrok (single tunnel)
@@ -59,13 +64,14 @@ Default `.env` for local play:
 
 ```
 VITE_SOCKET_URL=http://localhost:3001
+VITE_PEXELS_API_KEY=your_pexels_api_key_here
 ```
+
+Get a free Pexels API key at [pexels.com/api](https://www.pexels.com/api/).
 
 ---
 
 ## Running Locally
-
-You need two terminals:
 
 **Terminal 1 — backend server:**
 ```bash
@@ -93,6 +99,7 @@ npm run build
 **2. Update `.env` with your ngrok URL:**
 ```
 VITE_SOCKET_URL=https://your-ngrok-url.ngrok-free.app
+VITE_PEXELS_API_KEY=your_pexels_api_key_here
 ```
 
 **3. Rebuild:**
@@ -105,24 +112,25 @@ npm run build
 node server/index.js
 ```
 
-**5. Start ngrok (in a separate terminal):**
+**5. Start ngrok:**
 ```bash
 ngrok http 3001
 ```
 
-**6. Share the ngrok URL with your friend.** Both of you open it in a browser — no separate frontend tunnel needed.
+**6. Share the invite link.** Once you've created a room, copy the invite link from the waiting room — it includes the room code automatically. Your friend just opens the link, enters their name, and clicks **Gå med i spel**.
 
 ---
 
 ## How to Play
 
-1. Enter your name and click **Skapa spel** (Create game) — you get a room code
-2. Share the room code with friends
-3. Friends enter the code and click **Gå med i spel** (Join game)
+1. Enter your name and click **Skapa spel** (Create game)
+2. In the waiting room, copy the invite link and send it to your friend
+3. Your friend opens the link — the room code is pre-filled, they just enter their name and join
 4. The host configures category and number of cards, then starts the game
-5. A random player goes first
+5. A random player goes first — the active player's panel glows cyan
 6. Take turns flipping two cards — if they match, you keep the turn and score a point
 7. The player with the most pairs when all cards are matched wins
+8. Click **Spela igen** to rematch without re-entering codes
 
 ---
 
@@ -137,7 +145,7 @@ ngrok http 3001
 │   ├── MemoryCard.jsx       # Card grid + sparkle overlay
 │   ├── EmojiButton.jsx      # Individual card button
 │   ├── GameOver.jsx         # End screen with scores
-│   ├── GameStatus.jsx       # Current player + scores during game
+│   ├── GameStatus.jsx       # Active player glow + scores during game
 │   ├── Form.jsx             # Game config form (host only)
 │   └── ...
 ├── server/
@@ -155,7 +163,7 @@ ngrok http 3001
 npx vitest run
 ```
 
-Tests cover the image card rendering bug fix (bug condition + preservation properties).
+Tests cover socket event handling, turn enforcement, card flip guards, and image card rendering correctness.
 
 ---
 

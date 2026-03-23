@@ -459,41 +459,31 @@ export default function App() {
                     {!isWaitingRoom ? (
                         <div className="menu">
                             {roomError && <p className="error">{roomError}</p>}
-                            {!hasRoomInUrl && (
-                                <>
-                                    <div className="menu__section">
-                                        <label className="menu__label">Ditt namn</label>
-                                        <input 
-                                            type="text" 
-                                            className="menu__input"
-                                            placeholder="Ange ditt namn"
-                                            value={playerName}
-                                            onChange={(e) => setPlayerName(e.target.value)}
-                                        />
-                                        <button className="menu__btn menu__btn--primary" onClick={createRoom}>Skapa spel</button>
-                                    </div>
-                                    <div className="menu__divider"><span>eller</span></div>
-                                </>
+                            {!hasRoomInUrl ? (
+                                <div className="menu__section">
+                                    <label className="menu__label">Ditt namn</label>
+                                    <input 
+                                        type="text" 
+                                        className="menu__input"
+                                        placeholder="Ange ditt namn"
+                                        value={playerName}
+                                        onChange={(e) => setPlayerName(e.target.value)}
+                                    />
+                                    <button className="menu__btn menu__btn--primary" onClick={createRoom}>Skapa spel</button>
+                                </div>
+                            ) : (
+                                <div className="menu__section">
+                                    <label className="menu__label">Ditt namn</label>
+                                    <input 
+                                        type="text" 
+                                        className="menu__input"
+                                        placeholder="Ange ditt namn"
+                                        value={playerName}
+                                        onChange={(e) => setPlayerName(e.target.value)}
+                                    />
+                                    <button className="menu__btn menu__btn--secondary" onClick={joinRoom}>Gå med i spel</button>
+                                </div>
                             )}
-                            <div className="menu__section">
-                                <label className="menu__label">Ditt namn</label>
-                                <input 
-                                    type="text" 
-                                    className="menu__input"
-                                    placeholder="Ange ditt namn"
-                                    value={playerName}
-                                    onChange={(e) => setPlayerName(e.target.value)}
-                                />
-                                <label className="menu__label">Rumskod</label>
-                                <input 
-                                    type="text" 
-                                    className="menu__input"
-                                    placeholder="Ange rumskod"
-                                    value={roomCode}
-                                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                                />
-                                <button className="menu__btn menu__btn--secondary" onClick={joinRoom}>Gå med i spel</button>
-                            </div>
                         </div>
                     ) : (
                         <div className="room">

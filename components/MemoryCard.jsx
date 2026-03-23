@@ -36,8 +36,16 @@ export default function MemoryCard({ handleClick, data, selectedCards, matchedCa
     const isSelected = (index) => selectedCards.find(card => card.index === index);
     const isMatched = (index) => matchedCards.find(card => card.index === index);
 
+    // Välj antal kolumner baserat på kortantal för jämna rader utan overflow
+    const count = data.length;
+    const cols = count <= 10 ? 5
+               : count <= 20 ? 5
+               : count <= 30 ? 6
+               : count <= 40 ? 8
+               : 10;
+
     return (
-        <ul className="card-container">
+        <ul className="card-container" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
             {data.map((emoji, index) => (
                 <li 
                     key={index} 
